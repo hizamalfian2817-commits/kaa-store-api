@@ -1,20 +1,32 @@
-
+import os
+import psycopg
 from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.get("/")
 def home():
-    return jsonify({
-        "store": "Kaa Store",
-        "status": "online",
-        "message": "Kaa Store API is running"
-    })
+    return jsonify({"message": "Kaa Store API aktif"})
 
-@app.route("/health")
+@app.get("/health")
 def health():
-    return jsonify({"status": "healthy"})
+    return jsonify({"status": "ok"})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-  
+@app.get("/db-check")
+def db_check():
+    db_url = os.getenv("DATABASE_URL") or os.getenv("STORAGE_URL")
+
+    if not db_url:
+        return jsonify({"database": "url_not_found"}), 500
+
+    try:
+        with psycopg.connect(db_url, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+
+        return jsonify({"database": "connected"})
+
+    except Exception:
+        app.logger.exception("Database connection failed")
+        return jsonify({"database": "connection_failed"}), 500
